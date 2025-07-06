@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Chat app using Socket IO and Node JS</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-IQsoLXl5PILFhosVNubq5LC7Qb9DXgDA9i+tQ8Zj3iwWAwPtgFTxbJ8NT4GN1R8p" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js" integrity="sha384-cVKIPhGWiC2Al4u+LWgxfKTRIcfu0JTxR+EQDz/bgldoEyl4H0zUF0QKbrJ0EcQF" crossorigin="anonymous"></script>
+
+	<style>
+		body {
+			display: flex;
+			flex-direction: column;
+			min-height: 100vh;
+		}
+
+		.message-container {
+			flex: 1;
+			overflow-y: auto;
+			padding: 10px;
+			box-sizing: border-box;
+			position: relative;
+			/* Added */
+		}
+
+		.message-left {
+			text-align: left;
+			background-color: #fdb8b8;
+			margin-right: auto;
+			margin-left: 10px;
+			padding: 5px 10px;
+			border-radius: 10px;
+			max-width: 50%;
+			box-sizing: border-box;
+		}
+
+		.message-right {
+			text-align: right;
+			background-color: #3a04fd;
+			color: #fff;
+			margin-left: auto;
+			margin-right: 10px;
+			padding: 5px 10px;
+			border-radius: 10px;
+			max-width: 50%;
+			box-sizing: border-box;
+		}
+
+		#messageInputContainer {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			padding: 10px;
+			box-sizing: border-box;
+			
+		}
+
+		#messageInput {
+			flex: 1;
+			max-width: 80%;
+			margin-right: 10px;
+			padding: 8px;
+			border: 1px solid #ccc;
+			border-radius: 5px;
+		}
+
+		#sendMessageButton {
+			padding: 8px 20px;
+			background-color: #007bff;
+			color: #fff;
+			border: none;
+			border-radius: 5rem;
+			cursor: pointer;
+			
+		}
+
+		/* Centered join message */
+		.join-message {
+			position: absolute;
+			bottom: 10px;
+			left: 50%;
+			transform: translateX(-50%);
+		}
+
+		/* Modal content */
+		#usernameModal .modal-content {
+			background-color: #fff;
+			padding: 20px;
+			border-radius: 5px;
+		}
+		
+	</style>
+</head>
+
+<body style="background-color: rgb(170, 154, 243);">
+	<h1 class="font-bold text-black-500 
+            text-3xl text-center mt-5 mb-5">
+		LET'S CHAT
+		
+	</h1>
+
+	<div class="row">
+		<div class="col-8 offset-2" style="background-color: rgb(182, 180, 180);  border-radius: 20px;">
+	<div class="message-container" id="messageArea" style="  text-align: center; min-height: 500px; overflow-y: auto; max-height: 600px;">
+		<!-- Messages will be added dynamically here -->
+</div>
+<div id="messageInputContainer" class="mb-5">
+	<input type="text" id="messageInput" placeholder="Type your message...">
+	<button id="sendMessageButton">Send</button>
+</div>
+		</div>
+	</div>
+
+	<!-- Username Prompt Popup -->
+	<div id="usernameModal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden">
+		<div class="bg-white p-5 rounded-md">
+			<h2 class="text-lg font-semibold mb-3">Enter Your Username And Go</h2>
+			<input type="text" id="usernameInput" class="border border-gray-300 rounded-md px-3 py-2">
+			<button id="usernameSubmit" class="bg-blue-500 text-white rounded-md px-3 py-2 mt-3">Submit</button>
+		</div>
+	</div>
+
+	<script src="/socket.io/socket.io.js"></script>
+	<script>
+		let socket = io();
+
+		let messageArea = document.getElementById("messageArea");
+		let messageInput = document.getElementById("messageInput");
+		let sendMessageButton = document.getElementById("sendMessageButton");
+		let usernameModal = document.getElementById("usernameModal");
+		let usernameInput = document.getElementById("usernameInput");
+		let usernameSubmit = document.getElementById("usernameSubmit");
+		let username = ""; // Store the username
+
+		// Show username modal on page load
+		window.onload = function () {
+			usernameModal.classList.remove("hidden");
+		};
+
+		// Hide username modal and emit "user joined" event
+		usernameSubmit.addEventListener("click", function () {
+			username = usernameInput.value.trim(); // Store the entered username
+			if (username !== "") {
+				socket.emit('user joined', username);
+				usernameModal.classList.add("hidden");
+				usernameInput.disabled = true; // Disable the username input field
+			} else {
+				alert("Please enter a username.");
+			}
+		});
+
+		// Handle send message button click event
+		sendMessageButton.addEventListener("click", function () {
+			sendMessage();
+		});
+
+		// Handle form submission on Enter key press
+		messageInput.addEventListener("keypress", function (event) {
+			if (event.key === "Enter") {
+				sendMessage();
+			}
+		});
+
+		// Function to send message
+		function sendMessage() {
+			let messageValue = messageInput.value.trim();
+			if (messageValue !== "") {
+				socket.emit('send message', { username: username, message: messageValue });
+				messageInput.value = "";
+			}
+		}
+
+		socket.on("send message", (data) => {
+			let chatContent = document.createElement("p");
+			chatContent.textContent = `${data.username}: ${data.message}`;
+			chatContent.classList.add(data.username === username ? 'message-right' : 'message-left');
+			// chatContent.style.padding = "2px";
+			chatContent.style.marginTop = "11px";
+			messageArea.appendChild(chatContent);
+			// Scroll to the bottom of the message area
+			messageArea.scrollTop = messageArea.scrollHeight;
+		});
+
+		// Handle "user joined" event to display a message
+		socket.on("user joined", (username) => {
+			let joinMessage = document.createElement("p");
+			joinMessage.textContent = username + " has joined the chat.";
+			joinMessage.style.fontWeight = "bold";
+			messageArea.appendChild(joinMessage);
+			// Scroll to the bottom of the message area
+			messageArea.scrollTop = messageArea.scrollHeight;
+		});
+	</script>
+
+</body>
+
+</html>
