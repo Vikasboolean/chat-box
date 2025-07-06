@@ -1,2 +1,2 @@
 # chat-box
-A basic chating app project just for fun
+A basic chatting app project just for fun
